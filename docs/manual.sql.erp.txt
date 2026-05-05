@@ -1,0 +1,103 @@
+MANUAL DE OPERAÇÕES SQL -  (v3.3)
+⚙️ 1. Procedures (Ações Automatizadas)
+São os comandos que executam regras de negócio complexas. Você só precisa passar os dados, e o banco faz o resto.
+
+1. Cadastrar um Produto (Cria categorias e marcas sozinho):
+
+SQL
+EXEC sp_SalvarProduto 
+    @nome = 'CIMENTO CP II 50KG', 
+    @preco_custo = 22.00, 
+    @preco_venda = 30.00, 
+    @estoque_inicial = 100, 
+    @estoque_minimo = 20, 
+    @codigo_barras = '7891234567890', 
+    @nome_categoria = 'Básico', 
+    @nome_marca = 'Votorantim';
+2. Registrar Item na Venda (Baixa estoque e salva na auditoria):
+
+SQL
+EXEC sp_RegistrarItemVenda 
+    @id_venda = 1, 
+    @codigo_barras = '7891234567890', 
+    @quantidade = 5;
+📊 2. Views (Relatórios e Dashboards)
+São os comandos para ler dados. Eles pegam as tabelas complexas e entregam mastigadas para mostrar na tela.
+
+1. Ver o Catálogo de Produtos Completo:
+
+SQL
+SELECT * FROM vw_CatalogoProdutos;
+2. Ver o que precisa comprar hoje (Alerta de Estoque):
+
+SQL
+SELECT * FROM vw_SugestaoCompra;
+3. Conferir a Gaveta do Caixa (Fim do dia):
+
+SQL
+SELECT * FROM vw_FechamentoCaixa;
+4. Ver a DRE (Lucro Líquido Mensal - Visão Enxuta):
+
+SQL
+SELECT * FROM vw_RelatorioMensal_DRE;
+🛒 3. Comandos Avulsos (O Fluxo do Dia a Dia)
+Estes são os comandos simples de inserção (INSERT) e atualização (UPDATE) usados na operação da loja.
+
+A. Controle de Caixa
+1. Abrir o Caixa (Manhã):
+
+SQL
+INSERT INTO Controle_Caixa (troco_inicial) VALUES (100.00);
+2. Fechar o Caixa (Fim de Tarde):
+
+SQL
+UPDATE Controle_Caixa 
+SET status_caixa = 'FECHADO', data_fechamento = GETDATE() 
+WHERE id_caixa = 1; -- (Substituir pelo ID do caixa aberto)
+B. O PDV (Frente de Caixa)
+1. Abrir um Cupom / Nova Venda:
+
+SQL
+INSERT INTO Vendas (id_caixa) VALUES (1);
+2. Dar um desconto no balcão (Antes do cliente pagar):
+
+SQL
+UPDATE Vendas 
+SET valor_desconto = 5.00 
+WHERE id_venda = 15; -- (Substituir pelo ID da venda atual)
+3. Registrar o Pagamento do Cliente:
+
+SQL
+INSERT INTO PagamentosVenda (id_venda, forma_pagamento, valor_pago) 
+VALUES (15, 'PIX', 50.00); -- (Pode ser rodado várias vezes para pagamento misto)
+C. Financeiro (Contas a Pagar)
+1. Lançar uma conta que ainda vai vencer:
+
+SQL
+INSERT INTO Despesas (descricao, data_vencimento, valor_total, status_pagamento, data_pagamento)
+VALUES ('Boleto Fornecedor Tigre', '2026-05-20', 1500.00, 'PENDENTE', NULL);
+2. Registrar que a conta foi paga (Baixa):
+
+SQL
+UPDATE Despesas 
+SET status_pagamento = 'PAGO', data_pagamento = GETDATE() 
+WHERE id_despesa = 5;
+D. Auditoria e Diagnóstico Rápido
+1. Ver o "Dedo-Duro" (Histórico de um produto específico):
+
+SQL
+SELECT data_movimento, tipo_movimento, quantidade, motivo, usuario_responsavel 
+FROM Historico_Movimentacao_Estoque 
+WHERE id_produto = 10 -- (Coloque o ID do produto suspeito)
+ORDER BY data_movimento DESC;
+2. Painel de Resumo (Quantas vendas, caixas e produtos existem hoje):
+
+SQL
+SELECT 'Vendas Hoje' as Tabela, COUNT(*) as Total 
+FROM Vendas WHERE CAST(data_venda AS DATE) = CAST(GETDATE() AS DATE)
+UNION 
+SELECT 'Turnos Hoje', COUNT(*) 
+FROM Controle_Caixa WHERE CAST(data_abertura AS DATE) = CAST(GETDATE() AS DATE)
+UNION 
+SELECT 'Produtos Ativos', COUNT(*) 
+FROM Produtos WHERE ativo = 1;
