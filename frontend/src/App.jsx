@@ -87,7 +87,7 @@ const Icon = {
 const fmt = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 // ── Componente: Sidebar ──────────────────────────────────────
-function Sidebar({ active, onNav }) {
+function Sidebar({ active, onNav, onLogout }) {
   const items = [
     { id: "dashboard", label: "Dashboard",    icon: Icon.dashboard },
     { id: "estoque",   label: "Estoque",       icon: Icon.stock     },
@@ -139,8 +139,19 @@ function Sidebar({ active, onNav }) {
         })}
       </nav>
 
-      <div style={{ padding: "16px 24px", borderTop: `1px solid ${C.navyMid}` }}>
-        <div style={{ color: C.grayMid, fontSize: 12 }}>v1.0.0</div>
+      <div style={{ padding: "16px 12px", borderTop: `1px solid ${C.navyMid}` }}>
+        <button onClick={onLogout} style={{
+          width: "100%", padding: "10px 12px", borderRadius: 8, border: "none",
+          background: "transparent", color: C.grayMid, cursor: "pointer",
+          fontFamily: "inherit", fontSize: 14, fontWeight: 500, textAlign: "left",
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Sair
+        </button>
+        <div style={{ color: C.grayMid, fontSize: 11, paddingLeft: 12, marginTop: 4 }}>v1.0.0</div>
       </div>
     </aside>
   );
@@ -550,11 +561,28 @@ function CadastroProduto({ products, setProducts }) {
   );
 }
 
+// ── Hook LocalStorage ────────────────────────────────────────
+function useLocalStorage(key, initial) {
+  const [value, setValue] = useState(() => {
+    try {
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : initial;
+    } catch { return initial; }
+  });
+  const set = (v) => {
+    const next = typeof v === "function" ? v(value) : v;
+    setValue(next);
+    localStorage.setItem(key, JSON.stringify(next));
+  };
+  return [value, set];
+}
+
 // ── App principal ────────────────────────────────────────────
 export default function App() {
+  const [logado, setLogado] = useState(() => localStorage.getItem("lf_logado") === "true");
   const [tela, setTela]               = useState("dashboard");
-  const [products, setProducts]       = useState(initialProducts);
-  const [transactions, setTransactions] = useState(initialTransactions);
+  const [products, setProducts]       = useLocalStorage("lf_products", initialProducts);
+  const [transactions, setTransactions] = useLocalStorage("lf_transactions", initialTransactions);
 
   const renderTela = () => {
     switch (tela) {
@@ -566,12 +594,86 @@ export default function App() {
     }
   };
 
+  if (!logado) return <Login onLogin={() => { localStorage.setItem("lf_logado", "true"); setLogado(true); }} />;
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter', 'Segoe UI', sans-serif", background: C.bgPage }}>
-      <Sidebar active={tela} onNav={setTela} />
+      <Sidebar active={tela} onNav={setTela} onLogout={() => { localStorage.removeItem("lf_logado"); setLogado(false); }} />
       <main style={{ flex: 1, padding: "36px 40px", overflowY: "auto", width: "100%" }}>
         {renderTela()}
       </main>
     </div>
   );
 }
+// ── Tela: Login ──────────────────────────────────────────────
+function Login({ onLogin }) {
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const [erro, setErro] = useState("");
+
+  const handleLogin = () => {
+    if (user === "admin" && pass === "admin123") {
+      onLogin();
+    } else {
+      setErro("Usuário ou senha incorretos.");
+    }
+  };
+
+  const inputStyle = {
+    width: "100%", padding: "12px 14px", borderRadius: 8,
+    border: `1.5px solid ${C.grayLight}`, fontSize: 14,
+    fontFamily: "inherit", color: C.navyDark, outline: "none",
+    boxSizing: "border-box", background: C.white,
+  };
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      minHeight: "100vh", background: C.navyDark, fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    }}>
+      <div style={{
+        background: C.grayLight, borderRadius: 16, padding: "48px 40px",
+        width: "100%", maxWidth: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+      }}>
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
+          <img src="/logo.png" alt="LogiFlow" style={{ width: 150, height: 150, objectFit: "contain" }} />
+          <div>
+            <div style={{ color: C.navyDark, fontWeight: 700, fontSize: 22 }}>LogiFlow</div>
+            <div style={{ color: C.grayMid, fontSize: 13 }}>Gestão de Estoque</div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ color: C.navyDark, fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Bem-vindo!</div>
+          <div style={{ color: C.grayMid, fontSize: 14 }}>Entre com suas credenciais para continuar</div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: C.navyDark, display: "block", marginBottom: 5 }}>Usuário</label>
+            <input placeholder="Digite seu usuário" value={user} onChange={e => setUser(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: C.navyDark, display: "block", marginBottom: 5 }}>Senha</label>
+            <input type="password" placeholder="Digite sua senha" value={pass} onChange={e => setPass(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleLogin()} style={inputStyle} />
+          </div>
+
+          {erro && <div style={{ color: C.red, fontSize: 13, background: C.redBg, borderRadius: 7, padding: "8px 12px" }}>{erro}</div>}
+
+          <button onClick={handleLogin} style={{
+            background: C.navyDark, color: C.white, border: "none", borderRadius: 8,
+            padding: "13px", fontSize: 15, fontWeight: 600, cursor: "pointer",
+            fontFamily: "inherit", marginTop: 4,
+          }}>Entrar</button>
+        </div>
+
+        <div style={{ marginTop: 20, padding: "12px", background: C.bgPage, borderRadius: 8, fontSize: 12, color: C.grayMid }}>
+          👤 Usuário: <strong>admin</strong> &nbsp;|&nbsp; 🔑 Senha: <strong>admin123</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
